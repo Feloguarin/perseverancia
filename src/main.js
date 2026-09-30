@@ -9,6 +9,13 @@ import { createRocks } from './rocks.js';
 import { createSky, HORIZON } from './sky.js';
 import { createMoons } from './moons.js';
 import { createDust } from './dust.js';
+import { createMissionControl } from './mission/panel.js';
+import { Rover } from './rover.js';
+import { Tracks } from './tracks.js';
+import { createDriveHud } from './driveHud.js';
+import * as ground from './ground.js';
+import { createCameraSpots } from './cameras/cameraSpots.js';
+import { createPhotoViewer } from './cameras/photoViewer.js';
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -24,15 +31,19 @@ scene.background = HORIZON.clone();
 scene.fog = new THREE.FogExp2(HORIZON.clone(), 0.0042);
 
 const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 3000);
-const camX = 0, camZ = 26;
-camera.position.set(camX, heightAt(camX, camZ) + 2.6, camZ);
+const ROVER_START = { x: 0, z: 10 };
+const TARGET_LIFT = 1.3; // la cámara mira al cuerpo del rover, no a sus ruedas
+const startY = heightAt(ROVER_START.x, ROVER_START.z);
+camera.position.set(ROVER_START.x + 2.5, startY + 3.4, ROVER_START.z + 9);
 
+// Órbita libre con el ratón alrededor del rover; al manejar, la cámara vuelve detrás de él.
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.target.set(0, heightAt(0, -40) + 5, -40);
+controls.target.set(ROVER_START.x, startY + TARGET_LIFT, ROVER_START.z);
 controls.enableDamping = true;
-controls.maxPolarAngle = Math.PI * 0.53;
-controls.minDistance = 5;
-controls.maxDistance = 200;
+controls.enablePan = false;
+controls.maxPolarAngle = Math.PI * 0.52;
+controls.minDistance = 4;
+controls.maxDistance = 60;
 
 // Sol de tarde: bajo sobre el horizonte, delante de la cámara (contraluz cinematográfico).
 const sunDir = new THREE.Vector3(-0.38, 0.13, -1).normalize();
@@ -49,10 +60,14 @@ sun.shadow.radius = 4;
 sun.shadow.bias = -0.0004;
 sun.shadow.normalBias = 0.06;
 const sc = sun.shadow.camera;
-sc.left = -90; sc.right = 90; sc.top = 90; sc.bottom = -90;
+sc.left = -70; sc.right = 70; sc.top = 70; sc.bottom = -70;
 sc.near = 1; sc.far = 600;
-sun.target.position.set(0, 0, -20);
-sun.position.copy(sun.target.position).addScaledVector(sunDir, 300);
+// La sombra sigue al rover para mantener detalle donde está la acción.
+const placeSun = (x, z) => {
+  sun.target.position.set(x, 0, z - 15);
+  sun.position.copy(sun.target.position).addScaledVector(sunDir, 300);
+};
+placeSun(ROVER_START.x, ROVER_START.z);
 scene.add(sun, sun.target);
 
 scene.add(createTerrain());
@@ -63,6 +78,57 @@ scene.add(moons);
 
 const dust = createDust();
 scene.add(dust);
+
+const tracks = new Tracks();
+scene.add(tracks.mesh);
+
+// Mapa de entorno a partir del cielo, para que los metales del rover tengan qué reflejar.
+const pmrem = new THREE.PMREMGenerator(renderer);
+const envScene = new THREE.Scene();
+envScene.add(createSky(sunDir));
+const envMap = pmrem.fromScene(envScene, 0.02).texture;
+pmrem.dispose();
+
+const rover = new Rover();
+let cameraSpots = null;
+scene.add(rover.object);
+rover
+  .load(envMap)
+  .then(() => {
+    rover.setPosition(ROVER_START.x, ROVER_START.z, 0);
+    // Las cámaras de Percy toman fotos reales de Marte.
+    const viewer = createPhotoViewer();
+    cameraSpots = createCameraSpots(rover, camera, { onPick: viewer.open, onHover: viewer.preload });
+  })
+  .catch((e) => console.error('[Rover] No se pudo cargar el modelo:', e));
+
+const _delta = new THREE.Vector3();
+const _offset = new THREE.Vector3();
+const _desired = new THREE.Vector3();
+function followRover(dt) {
+  const p = rover.object.position;
+  _delta.set(p.x, p.y + TARGET_LIFT, p.z).sub(controls.target);
+  controls.target.add(_delta);
+  camera.position.add(_delta);
+
+  if (Math.abs(rover.speed) > 0.1 || rover.turning) {
+    // Mantiene distancia y altura actuales, pero gira suavemente hasta quedar detrás del rover.
+    _offset.subVectors(camera.position, controls.target);
+    const horiz = THREE.MathUtils.clamp(Math.hypot(_offset.x, _offset.z), 7, 30);
+    const f = rover.forward;
+    // Altura baja y fija: plano de persecución que deja ver el horizonte y el cielo.
+    _desired.set(-f.x * horiz, 0.9 + horiz * 0.07, -f.z * horiz);
+    _offset.lerp(_desired, 1 - Math.exp(-dt * 1.8));
+    camera.position.copy(controls.target).add(_offset);
+  }
+  const minY = heightAt(camera.position.x, camera.position.z) + 0.8;
+  if (camera.position.y < minY) camera.position.y = minY;
+}
+
+createMissionControl();
+const updateDriveHud = createDriveHud(rover);
+// Solo en desarrollo: acceso para pruebas automáticas (npm run check).
+if (import.meta.env.DEV) window.__percy = { rover, camera, controls, ground };
 
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
@@ -79,7 +145,15 @@ window.addEventListener('resize', () => {
 const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.05);
+  if (rover.ready) {
+    rover.update(dt);
+    tracks.update(rover.trackPoints(), rover.heading);
+    followRover(dt);
+    placeSun(rover.object.position.x, rover.object.position.z);
+    updateDriveHud(performance.now());
+  }
   controls.update();
+  cameraSpots?.update(performance.now());
   sky.position.copy(camera.position);
   moons.position.copy(camera.position);
   moons.userData.phobos.rotation.y += dt * 0.02;

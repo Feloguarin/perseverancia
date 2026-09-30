@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { fbm3, mulberry32 } from './noise.js';
 import { heightAt } from './terrain.js';
+import { registerRock, heightGrid } from './ground.js';
 
 // Roca irregular: icosaedro suavizado + ruido, aplastado y con base plana.
 export function rockGeometry(seed, detail = 4, roughness = 0.45) {
@@ -32,6 +33,17 @@ export function createRocks() {
   const tints = ['#6e3f2a', '#7d4a33', '#5a3325', '#8a5a40', '#4b2c20'].map((h) => new THREE.Color(h));
 
   const dummy = new THREE.Object3D();
+  // Registra la roca como obstáculo sólido, con la forma real de su geometría.
+  const shapes = new Map();
+  const collide = (o, geometry) => {
+    if (!shapes.has(geometry)) shapes.set(geometry, heightGrid(geometry));
+    registerRock({
+      x: o.position.x, y: o.position.y, z: o.position.z,
+      sx: o.scale.x, sy: o.scale.y, sz: o.scale.z,
+      rot: o.rotation.y,
+      shape: shapes.get(geometry),
+    });
+  };
   const tmp = new THREE.Color();
 
   const place = (mesh, count, { minS, maxS, radius, center, power, sink }) => {
@@ -46,6 +58,7 @@ export function createRocks() {
       dummy.scale.set(s * (0.8 + rand() * 0.5), s * (0.7 + rand() * 0.5), s * (0.8 + rand() * 0.5));
       dummy.updateMatrix();
       mesh.setMatrixAt(i, dummy.matrix);
+      collide(dummy, mesh.geometry);
       tmp.copy(tints[Math.floor(rand() * tints.length)]).multiplyScalar(0.85 + rand() * 0.3);
       mesh.setColorAt(i, tmp);
     }
@@ -75,6 +88,7 @@ export function createRocks() {
     m.scale.set(h.s * 1.2, h.s, h.s);
     m.rotation.y = i * 1.7;
     m.castShadow = m.receiveShadow = true;
+    collide(m, m.geometry);
     group.add(m);
   });
 

@@ -1,0 +1,174 @@
+/* Consola de control de misión sobre la escena. Tonos del propio atardecer marciano. */
+.mc,
+.mc-tab {
+  --mc-glass: rgba(34, 16, 9, 0.8);
+  --mc-ink: #f3dcc4;
+  --mc-muted: #b99277;
+  --mc-rule: rgba(235, 154, 88, 0.22);
+  font-family: 'Barlow', system-ui, sans-serif;
+  color: var(--mc-ink);
+}
+
+.mc {
+  position: fixed;
+  z-index: 6;
+  left: 16px;
+  right: 16px;
+  bottom: 16px;
+  background: var(--mc-glass);
+  border: 1px solid var(--mc-rule);
+  border-radius: 10px;
+  backdrop-filter: blur(10px) saturate(1.15);
+  -webkit-backdrop-filter: blur(10px) saturate(1.15);
+  box-shadow: 0 18px 40px rgba(40, 12, 2, 0.45);
+  transition: transform 0.35s cubic-bezier(0.2, 0.7, 0.2, 1), opacity 0.25s ease;
+}
+.mc[data-hidden='true'] {
+  transform: translateY(calc(100% + 24px));
+  opacity: 0;
+  pointer-events: none;
+}
+
+.mc-bar {
+  display: flex;
+  align-items: baseline;
+  gap: 18px;
+  padding: 7px 16px 6px;
+  border-bottom: 1px solid var(--mc-rule);
+}
+.mc-bar h2 {
+  margin: 0;
+  font: 600 18px/1.1 'Barlow Condensed', 'Arial Narrow', sans-serif;
+  letter-spacing: 0.01em;
+}
+.mc-bar p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--mc-muted);
+}
+.mc-clock {
+  font-variant-numeric: tabular-nums;
+}
+.mc-key {
+  margin-left: auto !important;
+}
+
+kbd {
+  display: inline-block;
+  min-width: 1.5em;
+  padding: 0 0.35em;
+  border: 1px solid rgba(243, 220, 196, 0.35);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  font: 600 12px/1.45 'Barlow Condensed', sans-serif;
+  text-align: center;
+  color: var(--mc-ink);
+}
+
+.mc-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.mc-cell {
+  padding: 9px 16px 10px;
+  min-width: 0;
+}
+.mc-cell + .mc-cell {
+  border-left: 1px solid var(--mc-rule);
+}
+.mc-cell h3 {
+  margin: 0;
+  font: 500 15px/1.2 'Barlow Condensed', 'Arial Narrow', sans-serif;
+  color: var(--mc-muted);
+}
+.mc-value {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  margin: 1px 0 5px;
+  font: 600 30px/1 'Barlow Condensed', 'Arial Narrow', sans-serif;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.mc-unit {
+  font-size: 17px;
+  font-weight: 500;
+  color: var(--accent);
+}
+.mc-at {
+  margin-left: auto;
+  font: 500 12px/1 'Barlow', sans-serif;
+  color: var(--mc-muted);
+}
+.mc-cell[data-status='error'] .mc-num {
+  font-size: 22px;
+  color: var(--mc-muted);
+}
+
+.mc-cell canvas {
+  display: block;
+  width: 100%;
+  height: 46px;
+  cursor: crosshair;
+  touch-action: none;
+}
+.mc-axis {
+  display: flex;
+  justify-content: space-between;
+  margin: 2px 40px 0 0;
+  font-size: 11px;
+  color: var(--mc-muted);
+}
+.mc-say {
+  margin: 6px 0 4px;
+  font-size: 12.5px;
+  line-height: 1.38;
+  max-width: 44ch;
+}
+.mc-src {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--mc-muted);
+}
+
+.mc-tab {
+  position: fixed;
+  z-index: 6;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--mc-glass);
+  border: 1px solid var(--mc-rule);
+  border-radius: 8px;
+  font: 500 14px 'Barlow Condensed', sans-serif;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease 0.1s;
+}
+.mc-tab[data-visible='true'] {
+  opacity: 1;
+  pointer-events: auto;
+}
+.mc-tab:focus-visible {
+  outline: 2px solid #9dbbe0;
+  outline-offset: 2px;
+}
+
+@media (max-width: 960px) {
+  .mc-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mc-cell:nth-child(3) { border-left: 0; }
+  .mc-cell:nth-child(n + 3) { border-top: 1px solid var(--mc-rule); }
+}
+@media (max-width: 560px) {
+  .mc { max-height: 60vh; overflow-y: auto; }
+  .mc-grid { grid-template-columns: minmax(0, 1fr); }
+  .mc-cell + .mc-cell { border-left: 0; border-top: 1px solid var(--mc-rule); }
+  .mc-key { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mc, .mc-tab { transition: none; }
+}
