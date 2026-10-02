@@ -25,6 +25,7 @@ const FIRM = { mu: 0.9, roll: 0.05 };
 const SAND = { mu: 0.55, roll: 0.15 };
 
 const _v = new THREE.Vector3();
+const NO_KEYS = new Set();
 const _euler = new THREE.Euler(0, 0, 0, 'YXZ');
 
 export class Rover {
@@ -46,10 +47,10 @@ export class Rover {
     window.addEventListener('blur', () => this.keys.clear());
   }
 
-  async load(envMap) {
+  async load(envMap, onProgress) {
     const draco = new DRACOLoader().setDecoderPath('/draco/');
     const loader = new GLTFLoader().setDRACOLoader(draco);
-    const gltf = await loader.loadAsync(MODEL_URL);
+    const gltf = await loader.loadAsync(MODEL_URL, onProgress);
     const model = gltf.scene;
 
     // Escala a tamaño real y apoya las ruedas en y = 0, centrado en XZ.
@@ -163,7 +164,8 @@ export class Rover {
 
   // Devuelve la distancia recorrida en este frame (con signo).
   update(dt) {
-    const k = this.keys;
+    // Mientras el brazo o los instrumentos trabajan, el rover no se mueve (como el real).
+    const k = this.locked ? NO_KEYS : this.keys;
     const drive = (k.has('w') || k.has('arrowup') ? 1 : 0) - (k.has('s') || k.has('arrowdown') ? 1 : 0);
     const steer = (k.has('a') || k.has('arrowleft') ? 1 : 0) - (k.has('d') || k.has('arrowright') ? 1 : 0);
     this.throttle += THREE.MathUtils.clamp(drive - this.throttle, -3 * dt, 3 * dt);

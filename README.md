@@ -10,7 +10,7 @@
 
 **Maneja el rover Perseverance de la NASA por Marte, desde tu navegador.**
 
-Es una simulación 3D hecha con [Three.js](https://threejs.org) que mezcla un juego con datos de verdad: el rover se mueve con la mecánica del Perseverance real, el control de misión muestra datos reales de la NASA y sus cámaras abren fotos reales que Percy tomó en Marte en los últimos días.
+Es una simulación 3D hecha con [Three.js](https://threejs.org) que mezcla un juego con datos de verdad: el rover se mueve con la mecánica del Perseverance real, el control de misión muestra datos reales de la NASA, sus cámaras abren fotos reales que Percy tomó en Marte en los últimos días y tienes su misión de verdad: buscar señales de vida antigua.
 
 <p align="center">
   <img src="docs/img/heroe.jpg" alt="El rover Perseverance a contraluz en una duna marciana" width="100%" />
@@ -24,6 +24,32 @@ Es una simulación 3D hecha con [Three.js](https://threejs.org) que mezcla un ju
 | <img src="docs/img/juego.jpg" alt="Juego con el tablero de manejo y el control de misión" /> | **Ver el control de misión.** Distancia recorrida, altura del terreno e inclinación del registro de manejos de la NASA, y el tiempo que tarda la luz entre la Tierra y Marte, calculado en vivo. |
 | <img src="docs/img/camaras.jpg" alt="Puntos brillantes sobre las cámaras del rover" /> | **Usar las cámaras de Percy.** Mastcam-Z, NavCam, Hazcam y WATSON brillan sobre el modelo. Haz clic en una y la foto llega línea a línea, como baja desde Marte. |
 | <img src="docs/img/foto-watson.jpg" alt="Foto real de WATSON: un parche raspado en una roca" /> | **Mirar fotos reales.** Cada foto dice qué cámara la tomó, en qué sol y hace cuántos días. Usa las flechas para ver más y Esc para volver al juego. |
+
+## Tu misión: ¿hubo vida en Jezero?
+
+<p align="center">
+  <img src="docs/img/mision.jpg" alt="El rover frente a Cheyava Falls, con el hallazgo de una posible biofirma" width="100%" />
+</p>
+
+Perseverance es un laboratorio de astrobiología con ruedas. Hace 3.500 millones de años el cráter Jezero fue un lago, y su misión es buscar rocas que hayan guardado señales de vida microscópica y sellar muestras para que una futura misión las traiga a la Tierra.
+
+En el juego hay **5 rocas reales de la misión** y solo **4 tubos**. Con cada roca haces lo mismo que el equipo real:
+
+| Paso | Tecla | Qué pasa | Regla real |
+|---|---|---|---|
+| Analizar a distancia | <kbd>Q</kbd> | El láser de SuperCam revela de qué está hecha | Hasta 7 m de distancia |
+| Raspar y analizar | <kbd>E</kbd> | El brazo raspa un parche de 5 cm; PIXL mide los elementos y SHERLOC busca orgánicos | La roca tiene que estar al alcance del brazo, de frente |
+| Guardar muestra | <kbd>R</kbd> | Perfora un núcleo y sella un tubo | El rover tiene que estar detenido |
+
+| Roca | Qué tiene de especial |
+|---|---|
+| **Roubion** | Blanda: en 2021 la primera muestra se hizo polvo y el tubo solo guardó aire. Aquí también. |
+| **Rochette** | Basalto con sales que pudieron atrapar agua antigua. Las primeras muestras exitosas. |
+| **Wildcat Ridge** | Lodo de un lago salado con muchas moléculas orgánicas. |
+| **Bunsen Peak** | Carbonato y sílice: de los mejores minerales para guardar huellas de vida. |
+| **Cheyava Falls** | "Manchas de leopardo" que en 2025 la NASA presentó como una **posible biofirma**. |
+
+Cada muestra vale más si antes la estudiaste. Cuando termines, envía tu informe a la Tierra y mira tu puntaje.
 
 ## Pruébalo en 2 minutos
 
@@ -42,7 +68,8 @@ Abre <http://localhost:5173> y listo.
 |---|---|
 | <kbd>W</kbd> <kbd>S</kbd> | Avanzar y retroceder |
 | <kbd>A</kbd> <kbd>D</kbd> | Girar (solas: gira sobre sí mismo; con W: en arco) |
-| <kbd>T</kbd> | Mostrar u ocultar el control de misión |
+| <kbd>Q</kbd> <kbd>E</kbd> <kbd>R</kbd> | SuperCam, raspar y guardar muestra |
+| <kbd>T</kbd> | Mostrar u ocultar los paneles |
 | Mouse | Mover la cámara alrededor del rover |
 | Clic en un punto brillante | Tomar una foto con esa cámara |
 | <kbd>←</kbd> <kbd>→</kbd> / <kbd>Esc</kbd> | Más fotos / volver al juego |
@@ -70,6 +97,7 @@ Abre <http://localhost:5173> y listo.
 | Distancia, altura e inclinación | [Registro de manejos de Perseverance](https://mars.nasa.gov/mmgis-maps/M20/Layers/json/M20_waypoints.json) (NASA/JPL) |
 | Tiempo de luz Tierra–Marte | Calculado en vivo con los elementos orbitales de JPL |
 | Fotos | [API de imágenes crudas de Mars 2020](https://mars.nasa.gov/mars2020/multimedia/raw-images/) (NASA/JPL-Caltech) |
+| Rocas de la misión | Comunicados de NASA/JPL (2021–2025) y el artículo en *Nature* sobre Cheyava Falls (septiembre de 2025) |
 
 ## Cómo está organizado
 
@@ -84,6 +112,7 @@ src/
   ground.js        rocas sólidas que el rover puede subir o no
   mission/         control de misión (patrón de Open MCT)
   cameras/         cámaras de Percy, visor y fotos escogidas
+  science/         misión de astrobiología: rocas reales, instrumentos, muestras
 scripts/check.mjs  prueba automática con capturas
 ```
 
@@ -96,6 +125,7 @@ scripts/check.mjs  prueba automática con capturas
 Este proyecto es una base. Tómalo, cámbialo y hazlo tuyo. Algunas ideas:
 
 - **Control con retraso real:** manda órdenes al rover y que lleguen con los 3 a 22 minutos que tarda la luz. Así se maneja el de verdad.
+- **Más rocas y más tubos:** sumar otras muestras reales y el depósito de tubos de "Three Forks".
 - **Manejo autónomo:** que el rover esquive rocas solo usando sus Hazcams, como hace el sistema AutoNav.
 - **El helicóptero Ingenuity** volando sobre el cráter.
 - **La ruta real:** dibujar en un mapa los 45 km que Percy ha manejado, con el mismo registro de la NASA.
@@ -128,7 +158,7 @@ Para contribuir:
 
 **Drive NASA's Perseverance rover across Mars, right in your browser.**
 
-A 3D simulation built with [Three.js](https://threejs.org) that blends a game with real data: the rover moves with the mechanics of the real Perseverance, mission control shows real NASA data, and its cameras open real photos Percy took on Mars in the last few days.
+A 3D simulation built with [Three.js](https://threejs.org) that blends a game with real data: the rover moves with the mechanics of the real Perseverance, mission control shows real NASA data, its cameras open real photos Percy took on Mars in the last few days, and you get its real mission: searching for signs of ancient life.
 
 ## What you can do
 
@@ -140,6 +170,28 @@ A 3D simulation built with [Three.js](https://threejs.org) that blends a game wi
 <p align="center">
   <img src="docs/img/foto-hazcam.jpg" alt="Real Hazcam photo: the robotic arm working above the ground" width="100%" />
 </p>
+
+## Your mission: was there life in Jezero?
+
+Perseverance is an astrobiology lab on wheels. Jezero crater was a lake 3.5 billion years ago, and the rover's job is to find rocks that may have preserved signs of microscopic life, then seal samples so a future mission can bring them to Earth.
+
+The game has **5 real rocks from the mission** and only **4 tubes**. With each rock you do what the real team does:
+
+| Step | Key | What happens | Real-world rule |
+|---|---|---|---|
+| Remote analysis | <kbd>Q</kbd> | SuperCam's laser reveals what the rock is made of | Up to 7 m away |
+| Abrade and analyze | <kbd>E</kbd> | The arm grinds a 5 cm patch; PIXL measures elements and SHERLOC looks for organics | The rock must be in front, within arm's reach |
+| Take a sample | <kbd>R</kbd> | Drills a core and seals a tube | The rover must be stopped |
+
+| Rock | Why it matters |
+|---|---|
+| **Roubion** | Soft: in 2021 the first sample crumbled to dust and the tube only kept air. Same here. |
+| **Rochette** | Basalt with salts that may have trapped ancient water. The first successful samples. |
+| **Wildcat Ridge** | Mud from a salty lake, rich in organic molecules. |
+| **Bunsen Peak** | Carbonate and silica: among the best minerals for preserving traces of life. |
+| **Cheyava Falls** | "Leopard spots" that NASA presented in 2025 as a **potential biosignature**. |
+
+Each sample is worth more if you studied it first. When you're done, send your report to Earth and see your score.
 
 ## Try it in 2 minutes
 
@@ -158,7 +210,8 @@ Open <http://localhost:5173> and you're in.
 |---|---|
 | <kbd>W</kbd> <kbd>S</kbd> | Drive forward and backward |
 | <kbd>A</kbd> <kbd>D</kbd> | Turn (alone: turn in place; with W: drive an arc) |
-| <kbd>T</kbd> | Show or hide mission control |
+| <kbd>Q</kbd> <kbd>E</kbd> <kbd>R</kbd> | SuperCam, abrade, take a sample |
+| <kbd>T</kbd> | Show or hide the panels |
 | Mouse | Orbit the camera around the rover |
 | Click a glowing dot | Take a photo with that camera |
 | <kbd>←</kbd> <kbd>→</kbd> / <kbd>Esc</kbd> | More photos / back to the game |
@@ -178,12 +231,14 @@ Open <http://localhost:5173> and you're in.
 | Distance, elevation and tilt | [Perseverance drive log](https://mars.nasa.gov/mmgis-maps/M20/Layers/json/M20_waypoints.json) (NASA/JPL) |
 | Earth–Mars light time | Computed live from JPL orbital elements |
 | Photos | [Mars 2020 raw images API](https://mars.nasa.gov/mars2020/multimedia/raw-images/) (NASA/JPL-Caltech) |
+| Mission rocks | NASA/JPL press releases (2021–2025) and the *Nature* paper on Cheyava Falls (September 2025) |
 
 ## Build on top of it
 
 This project is a starting point. Take it, change it, make it yours. Some ideas:
 
 - **Real-delay driving:** send commands that arrive after the 3–22 minutes light takes to reach Mars. That's how the real rover is driven.
+- **More rocks and tubes:** add other real samples and the "Three Forks" sample depot.
 - **Autonomous driving:** let the rover avoid rocks on its own using its Hazcams, like the AutoNav system.
 - **The Ingenuity helicopter** flying over the crater.
 - **The real route:** map the 45 km Percy has driven, using the same NASA log.

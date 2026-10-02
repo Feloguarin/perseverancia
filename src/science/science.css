@@ -1,0 +1,375 @@
+/* Misión de astrobiología: panel, marcadores, hallazgos e informe. */
+.sci,
+.sci-find,
+.sci-report-card,
+.sci-tag {
+  box-sizing: border-box;
+  color: #f3dcc4;
+  font-family: 'Barlow', system-ui, sans-serif;
+  background: rgba(34, 16, 9, 0.84);
+  border: 1px solid rgba(235, 154, 88, 0.25);
+  backdrop-filter: blur(10px) saturate(1.15);
+  -webkit-backdrop-filter: blur(10px) saturate(1.15);
+}
+
+.sci {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 6;
+  width: 320px;
+  padding: 12px 14px 12px;
+  border-radius: 10px;
+  transition: opacity 0.25s ease, transform 0.3s ease;
+}
+.sci.is-hidden {
+  opacity: 0;
+  transform: translateY(-8px);
+  pointer-events: none;
+}
+.sci h2 {
+  margin: 0;
+  font: 600 19px/1.1 'Barlow Condensed', 'Arial Narrow', sans-serif;
+}
+.sci-goal {
+  margin: 4px 0 8px;
+  font-size: 12.5px;
+  line-height: 1.38;
+  color: #d9bea3;
+}
+.sci-tubes {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-top: 1px solid rgba(235, 154, 88, 0.2);
+}
+.sci-tube-row {
+  display: flex;
+  gap: 5px;
+}
+/* Tubos de muestra: vacíos, con roca o solo con aire. */
+.sci-tube {
+  width: 10px;
+  height: 24px;
+  border: 1.5px solid rgba(243, 220, 196, 0.55);
+  border-radius: 2px 2px 6px 6px;
+}
+.sci-tube.is-full {
+  background: linear-gradient(to top, #b8643a 70%, transparent 70%);
+  border-color: #eb9a58;
+}
+.sci-tube.is-air {
+  background: linear-gradient(to top, rgba(157, 187, 224, 0.35) 70%, transparent 70%);
+  border-color: #9dbbe0;
+}
+.sci-tube-label {
+  font-size: 12.5px;
+  color: #b99277;
+}
+.sci-list {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+  padding: 6px 0;
+  list-style: none;
+  border-top: 1px solid rgba(235, 154, 88, 0.2);
+}
+.sci-list li {
+  display: grid;
+  grid-template-columns: 16px 1fr auto;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 13.5px;
+}
+.sci-list small {
+  font-size: 11.5px;
+  color: #b99277;
+}
+.sci-icon {
+  color: #eb9a58;
+  text-align: center;
+}
+.sci-now {
+  position: relative;
+  padding-top: 8px;
+  border-top: 1px solid rgba(235, 154, 88, 0.2);
+}
+.sci-near {
+  margin: 0 0 7px;
+  font-size: 12.5px;
+  color: #d9bea3;
+}
+.sci-near b {
+  color: #f3dcc4;
+}
+.sci-actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 5px;
+}
+.sci-act {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 7px;
+  border: 1px solid rgba(235, 154, 88, 0.45);
+  border-radius: 6px;
+  background: rgba(235, 154, 88, 0.12);
+  color: #f3dcc4;
+  font: 500 15px/1.1 'Barlow Condensed', 'Arial Narrow', sans-serif;
+  text-align: left;
+  cursor: pointer;
+}
+.sci-act:hover:not(:disabled) {
+  background: rgba(235, 154, 88, 0.24);
+}
+.sci-act:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.sci-act:focus-visible,
+.sci-report-btn:focus-visible,
+.sci-report button:focus-visible {
+  outline: 2px solid #9dbbe0;
+  outline-offset: 2px;
+}
+.sci-why {
+  min-height: 1.3em;
+  margin: 7px 0 0;
+  font-size: 12px;
+  color: #ffb07a;
+}
+.sci-progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -4px;
+  height: 2px;
+  background: #9dbbe0;
+  transform-origin: left;
+  transform: scaleX(0);
+}
+.sci-report-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.sci-report-btn {
+  width: 100%;
+  margin-top: 8px;
+  padding: 5px 8px;
+  border: 1px solid rgba(243, 220, 196, 0.3);
+  border-radius: 6px;
+  background: none;
+  color: #d9bea3;
+  font: 500 14px 'Barlow Condensed', sans-serif;
+  cursor: pointer;
+}
+
+/* Marcadores sobre las rocas */
+.sci-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+.sci-marker {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.sci-pin {
+  width: 10px;
+  height: 10px;
+  margin-left: -5px;
+  background: #9dbbe0;
+  transform: rotate(45deg);
+  box-shadow: 0 0 10px rgba(157, 187, 224, 0.8);
+}
+.sci-tag {
+  display: grid;
+  padding: 3px 7px 4px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+.sci-tag b {
+  font: 600 13px/1.1 'Barlow Condensed', sans-serif;
+}
+.sci-tag small {
+  font-size: 11px;
+  color: #b99277;
+}
+.sci-marker.is-near .sci-pin {
+  background: #fff4e6;
+  box-shadow: 0 0 14px rgba(255, 220, 180, 0.95);
+}
+.sci-marker.is-done .sci-pin {
+  background: #eb9a58;
+  box-shadow: none;
+}
+.sci-marker.is-off .sci-tag {
+  opacity: 0.75;
+}
+
+/* Hallazgo */
+.sci-find {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  z-index: 7;
+  display: none;
+  width: min(520px, calc(100vw - 32px));
+  padding: 12px 16px 14px;
+  border-radius: 10px;
+  transform: translateX(-50%);
+  /* No se encima con el tablero de manejo (izq.) ni con el panel de misión (der.). */
+  max-width: calc(100vw - 2 * 340px);
+  box-shadow: 0 18px 40px rgba(40, 12, 2, 0.45);
+}
+.sci-find.is-open {
+  display: block;
+}
+.sci-find.is-bio {
+  border-color: #9dbbe0;
+  box-shadow: 0 0 0 1px rgba(157, 187, 224, 0.4), 0 18px 50px rgba(30, 50, 80, 0.5);
+}
+.sci-close {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  border: 0;
+  background: none;
+  color: #b99277;
+  font-size: 22px;
+  cursor: pointer;
+}
+.sci-instr {
+  margin: 0;
+  font: 500 13px 'Barlow Condensed', sans-serif;
+  color: #9dbbe0;
+}
+.sci-find h3,
+.sci-report h3 {
+  margin: 2px 0 6px;
+  font: 600 24px/1.1 'Barlow Condensed', 'Arial Narrow', sans-serif;
+}
+.sci-find.is-bio h3 {
+  color: #cfe0f5;
+}
+.sci-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.42;
+}
+.sci-hint {
+  margin: 6px 0 0;
+  font-size: 12.5px;
+  line-height: 1.35;
+  color: #d9bea3;
+}
+.sci-photo {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0 0;
+}
+.sci-photo[hidden] {
+  display: none;
+}
+.sci-photo img {
+  width: 96px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+.sci-photo figcaption {
+  font-size: 12px;
+  color: #b99277;
+}
+
+/* Informe para la Tierra */
+.sci-report {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: none;
+  place-items: center;
+  padding: 16px;
+  background: rgba(20, 8, 3, 0.6);
+}
+.sci-report.is-open {
+  display: grid;
+}
+.sci-report-card {
+  width: min(520px, 100%);
+  padding: 18px 20px;
+  border-radius: 12px;
+}
+.sci-rank {
+  margin: 0 0 10px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: #eb9a58;
+}
+.sci-samples {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 12px;
+  padding: 10px 0;
+  list-style: none;
+  border-block: 1px solid rgba(235, 154, 88, 0.2);
+}
+.sci-samples li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0 10px;
+  font-size: 14px;
+}
+.sci-samples span {
+  grid-row: 2;
+  font-size: 12px;
+  color: #b99277;
+}
+.sci-samples em {
+  grid-row: span 2;
+  align-self: center;
+  font: 600 17px 'Barlow Condensed', sans-serif;
+  font-style: normal;
+}
+.sci-why-text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.42;
+  color: #d9bea3;
+}
+.sci-report-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+.sci-report-actions button {
+  padding: 8px 12px;
+  border: 1px solid rgba(235, 154, 88, 0.45);
+  border-radius: 6px;
+  background: rgba(235, 154, 88, 0.15);
+  color: #f3dcc4;
+  font: 500 15px 'Barlow Condensed', sans-serif;
+  cursor: pointer;
+}
+
+/* Pantallas medianas: la tarjeta de hallazgo baja, debajo del tablero de manejo. */
+@media (max-width: 1100px) {
+  .sci-find { left: 16px; top: 200px; transform: none; max-width: none; width: min(440px, calc(100vw - 340px)); }
+}
+/* Celular: todo en una columna, debajo del tablero de manejo. */
+@media (max-width: 760px) {
+  .sci { top: 184px; width: calc(100vw - 32px); max-height: calc(100vh - 184px - 32vh - 32px); overflow-y: auto; }
+  .sci-find { top: auto; bottom: 16px; width: calc(100vw - 32px); max-height: 40vh; overflow-y: auto; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sci { transition: none; }
+}

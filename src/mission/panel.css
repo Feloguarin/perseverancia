@@ -164,7 +164,7 @@ kbd {
   .mc-cell:nth-child(n + 3) { border-top: 1px solid var(--mc-rule); }
 }
 @media (max-width: 560px) {
-  .mc { max-height: 60vh; overflow-y: auto; }
+  .mc { max-height: 32vh; overflow-y: auto; }
   .mc-grid { grid-template-columns: minmax(0, 1fr); }
   .mc-cell + .mc-cell { border-left: 0; border-top: 1px solid var(--mc-rule); }
   .mc-key { display: none; }

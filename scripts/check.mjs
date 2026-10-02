@@ -9,6 +9,8 @@ const OUT_START = 'screenshots/check-start.png';
 const OUT_HIDDEN = 'screenshots/check-sin-panel.png';
 const OUT_PHOTO = 'screenshots/check-foto.png';
 const OUT_PHOTO_ZOOM = 'screenshots/check-foto-ampliada.png';
+const OUT_MISSION = 'screenshots/check-mision.png';
+const OUT_REPORT = 'screenshots/check-informe.png';
 const WAIT_MS = Number(process.env.CHECK_WAIT ?? 4000);
 
 await mkdir('screenshots', { recursive: true });
@@ -26,6 +28,7 @@ const logs = [];
 const telemetry = [];
 const roverChecks = [];
 const photoChecks = [];
+const missionChecks = [];
 
 // Rangos plausibles: si el número cae fuera, no es un dato real de Percy.
 const EXPECTED = {
@@ -49,6 +52,62 @@ const readTelemetry = () =>
   );
 const panelHidden = () =>
   page.$eval('.mc', (el) => el.dataset.hidden === 'true' && getComputedStyle(el).opacity === '0');
+
+// Misión de astrobiología: analizar, raspar y guardar muestras, con las reglas del rover real.
+async function checkMission() {
+  const ok = (name, pass, detail) => {
+    missionChecks.push({ name, pass, detail });
+    if (!pass) errors.push(`misión: ${name} (${detail})`);
+  };
+  const statusOf = (key) => page.$eval(`.sci-list li[data-target=${key}]`, (li) => li.dataset.status).catch(() => null);
+  const waitStatus = (key, text) =>
+    page.waitForFunction(([k, t]) => document.querySelector(`.sci-list li[data-target=${k}]`)?.dataset.status === t, [key, text], { timeout: 10000 }).then(() => true).catch(() => false);
+  // Estaciona el rover de frente a una roca, a `gap` metros de su borde.
+  const park = (key, gap) =>
+    page.evaluate(([key, gap]) => {
+      const { rover, mission } = window.__percy;
+      const t = mission.targets.find((x) => x.key === key);
+      const a = 0.6, d = t.radius + gap;
+      const x = t.x + Math.sin(a) * d, z = t.z + Math.cos(a) * d;
+      rover.setPosition(x, z, Math.atan2(-(t.x - x), -(t.z - z)));
+    }, [key, gap]);
+
+  const count = await page.$$eval('.sci-marker', (els) => els.length);
+  ok('hay 5 rocas objetivo en el mapa', count === 5, `${count} marcadores`);
+
+  // Bunsen Peak: el ciclo completo.
+  await park('bunsen', 5);
+  await page.waitForTimeout(300);
+  const farAbrade = await page.$eval('.sci-act[data-action=abrade]', (b) => b.disabled);
+  ok('el brazo no alcanza una roca a 5 m', farAbrade, farAbrade ? 'raspar desactivado' : 'raspar activo a 5 m');
+  await page.keyboard.press('q');
+  ok('SuperCam analiza a distancia', await waitStatus('bunsen', 'Analizada'), String(await statusOf('bunsen')));
+  await park('bunsen', 1.5);
+  await page.waitForTimeout(300);
+  await page.keyboard.press('e');
+  ok('raspa y analiza con PIXL y SHERLOC', await waitStatus('bunsen', 'Raspada'), String(await statusOf('bunsen')));
+  await page.keyboard.press('r');
+  const sampled = await waitStatus('bunsen', 'Muestra guardada');
+  const tubes = await page.$eval('.sci', (el) => el.dataset.tubesUsed);
+  ok('guarda la muestra en un tubo', sampled && tubes === '1', `${await statusOf('bunsen')}, ${tubes} tubo usado`);
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: OUT_MISSION });
+
+  // Roubion: la roca blanda se desmorona, como en el primer intento real.
+  await park('roubion', 1.5);
+  await page.waitForTimeout(300);
+  await page.keyboard.press('r');
+  const crumbled = await waitStatus('roubion', 'Se desmoronó');
+  ok('Roubion se desmorona al perforarla', crumbled, String(await statusOf('roubion')));
+
+  // Informe para la Tierra.
+  await page.click('.sci-report-btn');
+  await page.waitForSelector('.sci-report.is-open', { timeout: 5000 }).catch(() => {});
+  const score = Number(await page.$eval('.sci-report', (el) => el.dataset.score).catch(() => 0));
+  ok('el informe suma los puntos', score === 125, `${score} puntos (esperados 120 de Bunsen Peak + 5 de Roubion)`);
+  await page.screenshot({ path: OUT_REPORT });
+  await page.click('.sci-keep').catch(() => {});
+}
 
 // Cámaras de Percy: cada punto abre una foto real de la NASA.
 async function checkPhotos() {
@@ -267,6 +326,9 @@ try {
   await page.waitForSelector('canvas', { timeout: 10000 });
   await checkMissionControl();
   await page.waitForTimeout(WAIT_MS);
+  // Percy tiene que estar en el suelo: el aviso de carga (o de error) ya no debe verse.
+  const stuck = await page.$eval('.load-status', (el) => el.textContent).catch(() => null);
+  if (stuck) errors.push(`rover: sigue en pantalla «${stuck}»`);
   await page.screenshot({ path: OUT_START });
   // Maneja el rover: recto, luego girando a la izquierda, para ver huellas y cámara que sigue.
   await page.mouse.click(640, 360);
@@ -281,6 +343,7 @@ try {
   await page.screenshot({ path: OUT });
   await checkRover();
   await checkPhotos();
+  await checkMission();
 } catch (e) {
   errors.push(`check: ${e.message}`);
 }
@@ -303,7 +366,11 @@ if (photoChecks.length) {
   console.log('Cámaras:');
   for (const c of photoChecks) console.log(`  ${c.pass ? '✓' : '✗'} ${c.info.cam}: ${c.info.when}, ${c.info.width} px · ${c.info.photo}`);
 }
-console.log(`\nCapturas: ${OUT_START} (inicio), ${OUT} (tras manejar), ${OUT_HIDDEN} (panel oculto con T), ${OUT_PHOTO} (foto abierta), ${OUT_PHOTO_ZOOM} (foto ampliada)`);
+if (missionChecks.length) {
+  console.log('Misión:');
+  for (const c of missionChecks) console.log(`  ${c.pass ? '✓' : '✗'} ${c.name}: ${c.detail}`);
+}
+console.log(`\nCapturas: ${OUT_START} (inicio), ${OUT} (tras manejar), ${OUT_HIDDEN} (panel oculto con T), ${OUT_PHOTO} (foto abierta), ${OUT_PHOTO_ZOOM} (foto ampliada), ${OUT_MISSION} (hallazgo), ${OUT_REPORT} (informe)`);
 if (warnings.length) {
   console.log(`\nAvisos (${warnings.length}):`);
   for (const w of warnings) console.log(`  - ${w}`);

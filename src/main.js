@@ -16,6 +16,7 @@ import { createDriveHud } from './driveHud.js';
 import * as ground from './ground.js';
 import { createCameraSpots } from './cameras/cameraSpots.js';
 import { createPhotoViewer } from './cameras/photoViewer.js';
+import { createScienceMission } from './science/scienceMission.js';
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -91,16 +92,42 @@ pmrem.dispose();
 
 const rover = new Rover();
 let cameraSpots = null;
+let mission = null;
 scene.add(rover.object);
+// En pantalla mientras Percy carga; si falla, muestra el error en vez de dejar el paisaje vacío.
+const loadStatus = document.createElement('p');
+loadStatus.className = 'load-status';
+loadStatus.setAttribute('role', 'status');
+loadStatus.textContent = 'Cargando a Percy…';
+document.body.append(loadStatus);
+const onModelProgress = (e) => {
+  if (!e.total) return;
+  const pct = Math.round((e.loaded / e.total) * 100);
+  loadStatus.textContent = pct < 100 ? `Cargando a Percy… ${pct} %` : 'Armando a Percy…';
+};
+
 rover
-  .load(envMap)
+  .load(envMap, onModelProgress)
   .then(() => {
     rover.setPosition(ROVER_START.x, ROVER_START.z, 0);
-    // Las cámaras de Percy toman fotos reales de Marte.
-    const viewer = createPhotoViewer();
-    cameraSpots = createCameraSpots(rover, camera, { onPick: viewer.open, onHover: viewer.preload });
+    loadStatus.remove();
+    // Lo que va encima del rover no debe poder dejarlo sin aparecer si falla.
+    try {
+      // Las cámaras de Percy toman fotos reales de Marte.
+      const viewer = createPhotoViewer();
+      cameraSpots = createCameraSpots(rover, camera, { onPick: viewer.open, onHover: viewer.preload });
+      // La misión de astrobiología: estudiar rocas y guardar muestras para la Tierra.
+      mission = createScienceMission({ scene, rover, isBusyElsewhere: viewer.isOpen });
+      if (import.meta.env.DEV) window.__percy.mission = mission;
+    } catch (e) {
+      console.error('[Misión] No se pudieron iniciar las cámaras o la misión de rocas:', e);
+    }
   })
-  .catch((e) => console.error('[Rover] No se pudo cargar el modelo:', e));
+  .catch((e) => {
+    console.error('[Rover] No se pudo cargar el modelo:', e);
+    loadStatus.dataset.error = 'true';
+    loadStatus.textContent = `No se pudo cargar a Percy: ${e?.message ?? e}. Recarga la página; si sigue, revisa que npm run dev esté corriendo.`;
+  });
 
 const _delta = new THREE.Vector3();
 const _offset = new THREE.Vector3();
@@ -127,6 +154,7 @@ function followRover(dt) {
 
 createMissionControl();
 const updateDriveHud = createDriveHud(rover);
+
 // Solo en desarrollo: acceso para pruebas automáticas (npm run check).
 if (import.meta.env.DEV) window.__percy = { rover, camera, controls, ground };
 
@@ -154,6 +182,7 @@ renderer.setAnimationLoop(() => {
   }
   controls.update();
   cameraSpots?.update(performance.now());
+  mission?.update(performance.now(), camera);
   sky.position.copy(camera.position);
   moons.position.copy(camera.position);
   moons.userData.phobos.rotation.y += dt * 0.02;
