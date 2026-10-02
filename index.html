@@ -11,6 +11,14 @@
     <style>
       html, body { margin: 0; height: 100%; overflow: hidden; background: #c98a5a; }
       canvas { display: block; }
+      /* Estado de carga del rover: visible hasta que Percy está en el suelo. */
+      .load-status {
+        position: fixed; z-index: 7; left: 50%; top: 42%; transform: translateX(-50%);
+        max-width: min(90vw, 560px); margin: 0; padding: 10px 16px;
+        background: rgba(34, 16, 9, 0.8); border: 1px solid rgba(235, 154, 88, 0.22); border-radius: 8px;
+        color: #f3dcc4; font: 500 15px/1.4 'Barlow', system-ui, sans-serif; text-align: center;
+      }
+      .load-status[data-error='true'] { border-color: #e0663a; color: #ffd9c4; }
     </style>
   </head>
   <body>
