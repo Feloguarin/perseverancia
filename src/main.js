@@ -105,10 +105,28 @@ const onModelProgress = (e) => {
   const pct = Math.round((e.loaded / e.total) * 100);
   loadStatus.textContent = pct < 100 ? `Cargando a Percy… ${pct} %` : 'Armando a Percy…';
 };
+// Si un paso de la carga se cuelga (como el worker de Draco en el navegador de Cursor), no hay error:
+// pasado un rato, decimos en pantalla en qué paso va y qué soporta este navegador.
+const loadStarted = performance.now();
+const loadWatchdog = setTimeout(() => {
+  if (rover.ready || loadStatus.dataset.error) return;
+  const info = {
+    paso: loadStatus.textContent,
+    segundos: Math.round((performance.now() - loadStarted) / 1000),
+    webassembly: typeof WebAssembly === 'object',
+    workers: typeof Worker === 'function',
+    webgl2: renderer.capabilities.isWebGL2,
+    navegador: navigator.userAgent,
+  };
+  console.error('[Rover] La carga del modelo no termina:', info);
+  loadStatus.dataset.error = 'true';
+  loadStatus.textContent = `Percy no termina de cargar (${info.paso.replace('…', '')}, ${info.segundos} s). WebAssembly: ${info.webassembly ? 'sí' : 'no'} · Workers: ${info.workers ? 'sí' : 'no'} · ${info.navegador}`;
+}, 20000);
 
 rover
   .load(envMap, onModelProgress)
   .then(() => {
+    clearTimeout(loadWatchdog);
     rover.setPosition(ROVER_START.x, ROVER_START.z, 0);
     loadStatus.remove();
     // Lo que va encima del rover no debe poder dejarlo sin aparecer si falla.
@@ -124,6 +142,7 @@ rover
     }
   })
   .catch((e) => {
+    clearTimeout(loadWatchdog);
     console.error('[Rover] No se pudo cargar el modelo:', e);
     loadStatus.dataset.error = 'true';
     loadStatus.textContent = `No se pudo cargar a Percy: ${e?.message ?? e}. Recarga la página; si sigue, revisa que npm run dev esté corriendo.`;
@@ -155,6 +174,21 @@ function followRover(dt) {
 createMissionControl();
 const updateDriveHud = createDriveHud(rover);
 
+// Encuadre: el control de misión tapa la parte de abajo de la pantalla, así que corremos la imagen
+// hacia arriba para que Percy quede en el espacio libre y no detrás del panel.
+const missionPanel = document.querySelector('.mc');
+let panelTop = window.innerHeight;
+const measurePanel = () => (panelTop = missionPanel?.offsetTop ?? window.innerHeight);
+if (missionPanel) new ResizeObserver(measurePanel).observe(missionPanel);
+let frameShift = 0;
+function frameRover(dt) {
+  const w = window.innerWidth, h = window.innerHeight;
+  const free = missionPanel?.dataset.hidden === 'true' ? h : panelTop;
+  const want = Math.max(0, h / 2 - free * 0.6);
+  frameShift += (want - frameShift) * (1 - Math.exp(-dt * 6));
+  if (frameShift > 0.5) camera.setViewOffset(w, h, 0, frameShift, w, h);
+  else if (camera.view?.enabled) camera.clearViewOffset();
+}
 // Solo en desarrollo: acceso para pruebas automáticas (npm run check).
 if (import.meta.env.DEV) window.__percy = { rover, camera, controls, ground };
 
@@ -168,6 +202,7 @@ window.addEventListener('resize', () => {
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
   composer.setSize(window.innerWidth, window.innerHeight);
+  measurePanel();
 });
 
 const clock = new THREE.Clock();
@@ -181,6 +216,7 @@ renderer.setAnimationLoop(() => {
     updateDriveHud(performance.now());
   }
   controls.update();
+  frameRover(dt);
   cameraSpots?.update(performance.now());
   mission?.update(performance.now(), camera);
   sky.position.copy(camera.position);

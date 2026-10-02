@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
+import { MainThreadDRACOLoader } from './dracoMainThread.js';
 import { heightAt, duneAmount } from './terrain.js';
 import { groundAt, obstacleAt, rockHeightAt } from './ground.js';
 import { buildRig } from './roverRig.js';
@@ -48,7 +48,7 @@ export class Rover {
   }
 
   async load(envMap, onProgress) {
-    const draco = new DRACOLoader().setDecoderPath('/draco/');
+    const draco = new MainThreadDRACOLoader().setDecoderPath('/draco/');
     const loader = new GLTFLoader().setDRACOLoader(draco);
     const gltf = await loader.loadAsync(MODEL_URL, onProgress);
     const model = gltf.scene;
