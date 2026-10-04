@@ -4,6 +4,7 @@ import { MainThreadDRACOLoader } from './dracoMainThread.js';
 import { heightAt, duneAmount } from './terrain.js';
 import { groundAt, obstacleAt, rockHeightAt } from './ground.js';
 import { buildRig } from './roverRig.js';
+import { createRoverArm } from './roverArm.js';
 
 const MODEL_URL = '/models/perseverance.glb';
 // Perseverance real: ~3 m de largo, 2,7 m de ancho, 2,2 m de alto. El modelo no es exactamente
@@ -73,6 +74,8 @@ export class Rover {
     this.wheelBase = wb.z;
 
     this.rig = buildRig(model);
+    // El brazo robótico, con la animación que trae el modelo.
+    this.arm = createRoverArm(model, gltf.animations);
     this._measure(model, pivot);
 
     const cameraParts = [];
@@ -246,6 +249,7 @@ export class Rover {
     t.blocked = blocked;
     t.aligning = commanded && gate < 1;
     t.sand = sand;
+    this.arm.update(dt);
     return dist;
   }
 

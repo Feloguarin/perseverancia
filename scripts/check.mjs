@@ -11,6 +11,7 @@ const OUT_PHOTO = 'screenshots/check-foto.png';
 const OUT_PHOTO_ZOOM = 'screenshots/check-foto-ampliada.png';
 const OUT_MISSION = 'screenshots/check-mision.png';
 const OUT_REPORT = 'screenshots/check-informe.png';
+const OUT_ARM = 'screenshots/check-brazo.png';
 const WAIT_MS = Number(process.env.CHECK_WAIT ?? 4000);
 
 await mkdir('screenshots', { recursive: true });
@@ -61,7 +62,7 @@ async function checkMission() {
   };
   const statusOf = (key) => page.$eval(`.sci-list li[data-target=${key}]`, (li) => li.dataset.status).catch(() => null);
   const waitStatus = (key, text) =>
-    page.waitForFunction(([k, t]) => document.querySelector(`.sci-list li[data-target=${k}]`)?.dataset.status === t, [key, text], { timeout: 10000 }).then(() => true).catch(() => false);
+    page.waitForFunction(([k, t]) => document.querySelector(`.sci-list li[data-target=${k}]`)?.dataset.status === t, [key, text], { timeout: 20000 }).then(() => true).catch(() => false);
   // Estaciona el rover de frente a una roca, a `gap` metros de su borde.
   const park = (key, gap) =>
     page.evaluate(([key, gap]) => {
@@ -84,14 +85,37 @@ async function checkMission() {
   ok('SuperCam analiza a distancia', await waitStatus('bunsen', 'Analizada'), String(await statusOf('bunsen')));
   await park('bunsen', 1.5);
   await page.waitForTimeout(300);
+  // El brazo se despliega, apoya la torreta en la roca y se vuelve a plegar.
+  const armTip = () =>
+    page.evaluate(() => {
+      const { rover } = window.__percy;
+      const p = rover.arm.tip();
+      return { y: p.y - rover.object.position.y, d: Math.hypot(p.x - rover.object.position.x, p.z - rover.object.position.z) };
+    });
+  const stowed = await armTip();
   await page.keyboard.press('e');
+  const reached = await page
+    .waitForFunction(() => window.__percy.rover.locked && !window.__percy.rover.arm.busy, null, { timeout: 8000, polling: 100 })
+    .then(() => true, () => false);
+  const atRock = await armTip();
+  await page.screenshot({ path: OUT_ARM });
   ok('raspa y analiza con PIXL y SHERLOC', await waitStatus('bunsen', 'Raspada'), String(await statusOf('bunsen')));
+  await page.waitForFunction(() => !window.__percy.rover.locked, null, { timeout: 10000 }).catch(() => {});
+  const back = await armTip();
+  const fmt = (p) => `${p.d.toFixed(2)} m adelante, ${p.y.toFixed(2)} m de alto`;
+  ok(
+    'el brazo se extiende hasta la roca y vuelve',
+    reached && atRock.d - stowed.d > 0.2 && atRock.y < stowed.y - 0.8 && Math.abs(back.d - stowed.d) < 0.01 && Math.abs(back.y - stowed.y) < 0.01,
+    `plegado ${fmt(stowed)} · en la roca ${fmt(atRock)} · de vuelta ${fmt(back)}`,
+  );
   await page.keyboard.press('r');
   const sampled = await waitStatus('bunsen', 'Muestra guardada');
   const tubes = await page.$eval('.sci', (el) => el.dataset.tubesUsed);
   ok('guarda la muestra en un tubo', sampled && tubes === '1', `${await statusOf('bunsen')}, ${tubes} tubo usado`);
   await page.waitForTimeout(400);
   await page.screenshot({ path: OUT_MISSION });
+  // Hasta que el brazo no se pliega, el rover no se mueve ni acepta otra orden.
+  await page.waitForFunction(() => !window.__percy.rover.locked, null, { timeout: 10000 }).catch(() => {});
 
   // Roubion: la roca blanda se desmorona, como en el primer intento real.
   await park('roubion', 1.5);
@@ -99,6 +123,7 @@ async function checkMission() {
   await page.keyboard.press('r');
   const crumbled = await waitStatus('roubion', 'Se desmoronó');
   ok('Roubion se desmorona al perforarla', crumbled, String(await statusOf('roubion')));
+  await page.waitForFunction(() => !window.__percy.rover.locked, null, { timeout: 10000 }).catch(() => {});
 
   // Informe para la Tierra.
   await page.click('.sci-report-btn');
@@ -370,7 +395,7 @@ if (missionChecks.length) {
   console.log('Misión:');
   for (const c of missionChecks) console.log(`  ${c.pass ? '✓' : '✗'} ${c.name}: ${c.detail}`);
 }
-console.log(`\nCapturas: ${OUT_START} (inicio), ${OUT} (tras manejar), ${OUT_HIDDEN} (panel oculto con T), ${OUT_PHOTO} (foto abierta), ${OUT_PHOTO_ZOOM} (foto ampliada), ${OUT_MISSION} (hallazgo), ${OUT_REPORT} (informe)`);
+console.log(`\nCapturas: ${OUT_START} (inicio), ${OUT} (tras manejar), ${OUT_HIDDEN} (panel oculto con T), ${OUT_PHOTO} (foto abierta), ${OUT_PHOTO_ZOOM} (foto ampliada), ${OUT_ARM} (brazo en la roca), ${OUT_MISSION} (hallazgo), ${OUT_REPORT} (informe)`);
 if (warnings.length) {
   console.log(`\nAvisos (${warnings.length}):`);
   for (const w of warnings) console.log(`  - ${w}`);

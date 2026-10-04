@@ -29,8 +29,13 @@ export function createScienceMission({ scene, rover, isBusyElsewhere }) {
   beam.frustumCulled = false;
   const spark = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: '#ffe2c0', transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false, fog: false }));
   spark.renderOrder = 10;
-  scene.add(beam, spark);
+  // Polvo que levanta la broca mientras raspa o perfora.
+  const dust = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: '#d9a377', transparent: true, opacity: 0, depthWrite: false }));
+  scene.add(beam, spark, dust);
   const head = rover.model.getObjectByName('head');
+  // El brazo tarda en desplegarse y plegarse: la barra de progreso cuenta todo.
+  const armMs = (rover.arm.outTime + rover.arm.backTime) * 1000;
+  const durations = { supercam: DURATION.supercam, abrade: DURATION.abrade + armMs, sample: DURATION.sample + armMs };
 
   const panel = createSciencePanel({
     targets: placed,
@@ -79,7 +84,18 @@ export function createScienceMission({ scene, rover, isBusyElsewhere }) {
     };
   }
 
-  function act(action) {
+  // Punto de la roca donde se apoya el brazo: arriba, del lado que mira al rover.
+  const _ray = new THREE.Raycaster();
+  function contactPoint(t) {
+    const p = rover.object.position;
+    const toRover = new THREE.Vector3(p.x - t.x, 0, p.z - t.z).normalize();
+    const top = t.mesh.position.y + t.mesh.scale.y * 2;
+    const above = new THREE.Vector3(t.x, top, t.z).addScaledVector(toRover, t.radius * 0.35);
+    _ray.set(above, DOWN);
+    return _ray.intersectObject(t.mesh, false)[0]?.point ?? new THREE.Vector3(t.x, t.mesh.position.y + t.mesh.scale.y, t.z);
+  }
+
+  async function act(action) {
     if (busy || isBusyElsewhere()) return;
     const o = options();
     if (!o || o[action] !== null) return;
@@ -89,28 +105,36 @@ export function createScienceMission({ scene, rover, isBusyElsewhere }) {
     rover.locked = true;
     panel.setBusy(action, t);
 
-    setTimeout(() => {
-      const from = rover.object.position.clone().setY(rover.object.position.y + 0.9).addScaledVector(rover.forward, 1.2);
-      if (action === 'supercam') {
-        s.analyzed = true;
-        lastFinding = { kind: 'supercam', target: t };
-      } else if (action === 'abrade') {
-        s.abraded = true;
-        addMark(t, from, 'patch', scene);
-        lastFinding = { kind: 'abrade', target: t };
-      } else if (action === 'sample') {
-        s.sampled = true;
-        s.crumbled = Boolean(t.sample.crumbles);
-        if (!s.crumbled) addMark(t, from, 'core', scene);
-        state.tubes.push(t.key);
-        lastFinding = { kind: 'sample', target: t };
-      }
-      busy = null;
-      rover.locked = false;
-      save();
-      panel.showFinding(lastFinding, state);
-      if (state.tubes.length >= TUBES) setTimeout(finish, 2500);
-    }, DURATION[action]);
+    // Raspar y perforar: el brazo se despliega, apoya la torreta en la roca, trabaja y se pliega.
+    const useArm = action !== 'supercam';
+    if (useArm) {
+      busy.contact = contactPoint(t);
+      await rover.arm.reachTo(busy.contact);
+    }
+    busy.working = performance.now();
+    await new Promise((r) => setTimeout(r, DURATION[action]));
+    busy.working = null;
+
+    if (action === 'supercam') {
+      s.analyzed = true;
+      lastFinding = { kind: 'supercam', target: t };
+    } else if (action === 'abrade') {
+      s.abraded = true;
+      addMark(t, rover.arm.tip(), 'patch', scene);
+      lastFinding = { kind: 'abrade', target: t };
+    } else if (action === 'sample') {
+      s.sampled = true;
+      s.crumbled = Boolean(t.sample.crumbles);
+      if (!s.crumbled) addMark(t, rover.arm.tip(), 'core', scene);
+      state.tubes.push(t.key);
+      lastFinding = { kind: 'sample', target: t };
+    }
+    save();
+    panel.showFinding(lastFinding, state);
+    if (useArm) await rover.arm.stow();
+    busy = null;
+    rover.locked = false;
+    if (state.tubes.length >= TUBES) setTimeout(finish, 2500);
   }
 
   // Se puede enviar el informe cuando quieras (desde la primera muestra) y seguir jugando después.
@@ -155,7 +179,15 @@ export function createScienceMission({ scene, rover, isBusyElsewhere }) {
 
   // Animación del láser: pulsos rápidos desde la cabeza del mástil hasta la roca.
   function updateEffects(now) {
-    const on = busy?.action === 'supercam';
+    // Polvo en el punto de contacto mientras la broca trabaja.
+    const drilling = busy?.working && busy.action !== 'supercam';
+    dust.material.opacity = drilling ? 0.35 + 0.25 * Math.sin((now - busy.working) / 70) : 0;
+    if (drilling) {
+      dust.position.copy(busy.contact).y += 0.05;
+      dust.scale.setScalar(0.25 + Math.random() * 0.15);
+    }
+
+    const on = busy?.action === 'supercam' && busy.working;
     if (!on) {
       beam.material.opacity = spark.material.opacity = 0;
       return;
@@ -179,7 +211,7 @@ export function createScienceMission({ scene, rover, isBusyElsewhere }) {
   return {
     update(now, camera) {
       updateEffects(now);
-      panel.update({ options: busy ? null : options(), camera, rover, busy, now, durations: DURATION });
+      panel.update({ options: busy ? null : options(), camera, rover, busy, now, durations });
     },
     act,
     finish,
@@ -190,6 +222,7 @@ export function createScienceMission({ scene, rover, isBusyElsewhere }) {
 }
 
 const UP = new THREE.Vector3(0, 1, 0);
+const DOWN = new THREE.Vector3(0, -1, 0);
 
 function glowTexture() {
   const cv = document.createElement('canvas');
