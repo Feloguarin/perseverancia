@@ -211,9 +211,11 @@ export function createSciencePanel({ targets, state, tubes, onAction, onReport, 
         $('.sci-text', card).textContent = t.contact.text;
         $('.sci-hint', card).textContent = t.contact.hint;
         card.classList.toggle('is-bio', Boolean(t.biosignature));
-        photo.hidden = false;
-        $('img', photo).src = REAL_PATCH.url;
-        $('figcaption', photo).textContent = REAL_PATCH.caption;
+        if (REAL_PATCH) {
+          photo.hidden = false;
+          $('img', photo).src = REAL_PATCH.url;
+          $('figcaption', photo).textContent = REAL_PATCH.caption;
+        }
       } else {
         $('.sci-instr', card).textContent = s.crumbled ? 'Muestra fallida' : `Tubo ${st.tubes.length} de ${tubes} sellado`;
         $('h3', card).textContent = s.crumbled ? `${t.name}: se hizo polvo` : `${t.name}: muestra guardada`;
@@ -221,7 +223,7 @@ export function createSciencePanel({ targets, state, tubes, onAction, onReport, 
         $('.sci-hint', card).textContent = s.crumbled
           ? 'Aprendizaje real: después de Roubion, el equipo buscó rocas más firmes para perforar.'
           : `Vale ${scoreOf(t, s)} puntos. ${bonusText(s)}`;
-        if (!s.crumbled) {
+        if (!s.crumbled && REAL_CORE) {
           photo.hidden = false;
           $('img', photo).src = REAL_CORE.url;
           $('figcaption', photo).textContent = REAL_CORE.caption;

@@ -1,10 +1,11 @@
 import { telemetryObject } from './telemetry.js';
 import { lightTimeSeconds, missionSol, solToMs } from './marsTime.js';
+import { copyDate, loadWaypoints } from './waypoints.js';
 
 const WAYPOINTS_URL = 'https://mars.nasa.gov/mmgis-maps/M20/Layers/json/M20_waypoints.json';
 
 // Historial de manejos de la NASA: una localización por punto del recorrido.
-// Solo usamos las de fin de manejo ("final: y"); las intermedias reinician la distancia.
+// Solo usamos las de fin de manejo; las intermedias reinician la distancia.
 export function waypointsProvider() {
   const FIELDS = {
     distance: (p) => p.dist_total_m / 1000,
@@ -12,16 +13,17 @@ export function waypointsProvider() {
     tilt: (p) => p.tilt,
   };
   let drives;
+  let name = 'NASA/JPL, registro de manejos';
   const load = () =>
-    (drives ??= fetch(WAYPOINTS_URL)
-      .then((r) => {
-        if (!r.ok) throw new Error(`NASA respondió ${r.status}`);
-        return r.json();
-      })
-      .then((json) => json.features.map((f) => f.properties).filter((p) => p.final === 'y')));
+    (drives ??= loadWaypoints().then((data) => {
+      name = data.source === 'live' ? 'NASA/JPL, registro de manejos (en vivo)' : `NASA/JPL, registro de manejos (copia del ${copyDate(data.updated)})`;
+      return data.points.filter((p) => p.final);
+    }));
 
   return {
-    name: 'NASA/JPL, registro de manejos',
+    get name() {
+      return name;
+    },
     url: WAYPOINTS_URL,
     objects: [
       telemetryObject('percy', 'distance', 'Distancia recorrida', 'km', 'km'),

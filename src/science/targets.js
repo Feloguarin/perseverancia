@@ -124,6 +124,11 @@ export const MAX_SCORE = [...TARGETS]
   .reduce((sum, t) => sum + scoreOf(t, { sampled: true, analyzed: true, abraded: true }), 0);
 
 // Fotos reales de WATSON (del visor de cámaras) para mostrar qué deja cada paso en una roca de verdad.
-const watson = (sol) => PHOTOS.watson.find((p) => p.sol === sol).url;
-export const REAL_PATCH = { url: watson(1970), caption: 'Un parche raspado real, de 5 cm (WATSON, sol 1970)' };
-export const REAL_CORE = { url: watson(1977), caption: 'El agujero real que deja una muestra (WATSON, sol 1977)' };
+// Se buscan por id, no por sol: al renovar las fotos, si falta una, el juego sigue sin esa imagen.
+const watson = (id) => PHOTOS.watson.find((p) => p.id === id);
+const real = (id, text) => {
+  const p = watson(id);
+  return p ? { url: p.url, caption: `${text} (WATSON, sol ${p.sol})` } : null;
+};
+export const REAL_PATCH = real('SIF_2014_0845771635_980EBY_N0920000SRLC08060_0000LMJ', 'Un parche raspado real');
+export const REAL_CORE = real('SIF_2019_0846185735_851EBY_N0920000SRLC00878_0000LMJ', 'El agujero real que deja el taladro');

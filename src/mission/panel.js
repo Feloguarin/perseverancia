@@ -225,6 +225,9 @@ function createCell(api, obj, view, grid) {
       const last = latest();
       Object.assign(el.dataset, { status: 'ok', value: String(last.value), points: String(series.length), sol: String(last.sol) });
       say.textContent = MEANING[key](series, last);
+      // La fuente puede cambiar al cargar (en vivo o la copia guardada).
+      el.dataset.provider = provider.name;
+      el.querySelector('.mc-src').textContent = `Fuente: ${provider.name}`;
       draw();
       api.subscribe(obj, (d) => {
         // El punto "ahora" se reemplaza; solo se agrega uno nuevo al cambiar de sol.

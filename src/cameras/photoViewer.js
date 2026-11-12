@@ -1,7 +1,12 @@
 import './cameras.css';
 import { PHOTOS } from './photos.js';
+import { latestPhotos } from './livePhotos.js';
+import { createWhereMap } from './whereMap.js';
 
-const STAY_MS = 8000; // cuánto se queda la foto antes de volver sola al juego
+// Cuánto se queda la foto antes de volver sola al juego. En pantallas táctiles no hay cursor
+// que la detenga al mirarla, así que se queda más.
+const STAY_MS = window.matchMedia('(pointer: coarse)').matches ? 25000 : 8000;
+const TAP = window.matchMedia('(pointer: coarse)').matches ? 'Toca' : 'Clic';
 const REVEAL_MS = 2600; // la foto llega línea a línea, como baja desde Marte
 const REVEAL_NEXT_MS = 900;
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -32,9 +37,16 @@ export function createPhotoViewer() {
       <figcaption>
         <p class="shot-cam"></p>
         <p class="shot-when"></p>
+        <p class="shot-live" hidden>Lo último de la NASA</p>
         <p class="shot-note"></p>
         <p class="shot-count"></p>
-        <p class="shot-keys"><span class="shot-zoom-hint">Clic para ampliar</span><span><kbd>←</kbd><kbd>→</kbd> más fotos</span><span><kbd>Esc</kbd> volver al juego</span></p>
+        <p class="shot-fresh" role="status"></p>
+        <p class="shot-keys"><span class="shot-zoom-hint"></span><span><kbd>←</kbd><kbd>→</kbd> más fotos</span><span><kbd>Esc</kbd> volver al juego</span></p>
+        <p class="shot-nav">
+          <button type="button" class="shot-prev" aria-label="Foto anterior">←</button>
+          <button type="button" class="shot-next" aria-label="Foto siguiente">→</button>
+          <button type="button" class="shot-close">Volver al juego</button>
+        </p>
         <p class="shot-credit"></p>
       </figcaption>
       <span class="shot-timer" aria-hidden="true"></span>
@@ -45,10 +57,31 @@ export function createPhotoViewer() {
   const img = $('img'), frame = $('.shot-frame'), scan = $('.shot-scan'), timer = $('.shot-timer');
   const figure = $('.shot-photo');
   let cam = null, index = 0, token = 0, stayTimer = null, timerAnim = null;
+  // Fotos de cada cámara: primero las escogidas a mano; detrás, las recién llegadas de la NASA.
+  const fresh = {};
+  const listFor = (key) => [...PHOTOS[key], ...(fresh[key] ?? [])];
+  const where = createWhereMap();
+  $('.shot-count').before(where.root);
+  const paintCount = () => {
+    if (!cam) return;
+    const total = listFor(cam.key).length, extra = fresh[cam.key]?.length ?? 0;
+    $('.shot-count').textContent = `Foto ${index + 1} de ${total}`;
+    $('.shot-fresh').textContent = extra ? `${extra} más, ${extra === 1 ? 'traída' : 'traídas'} ahora del servicio de la NASA: pasa las fotos para verlas.` : '';
+    root.dataset.fresh = String(extra);
+  };
+  // Pide lo último de esa cámara en el momento; si llega algo nuevo, se suma a la galería abierta.
+  function fetchFresh(camera) {
+    if (fresh[camera.key]) return;
+    latestPhotos(camera.key, PHOTOS[camera.key].map((p) => p.id)).then((list) => {
+      if (!list.length) return;
+      fresh[camera.key] = list;
+      if (cam === camera && isOpen()) paintCount();
+    });
+  }
 
   const setState = (s) => {
     root.dataset.state = s;
-    $('.shot-zoom-hint').textContent = s === 'zoomed' ? 'Clic para reducir' : 'Clic para ampliar';
+    $('.shot-zoom-hint').textContent = s === 'zoomed' ? `${TAP} para reducir` : `${TAP} para ampliar`;
     frame.setAttribute('aria-label', s === 'zoomed' ? 'Reducir la foto' : 'Ampliar la foto');
   };
   const isOpen = () => root.dataset.state !== 'idle';
@@ -56,6 +89,7 @@ export function createPhotoViewer() {
   function preload(camera) {
     const first = PHOTOS[camera.key]?.[0];
     if (first) new Image().src = first.url;
+    fetchFresh(camera);
   }
 
   // Obturador: las hojas se cierran y abren, y un destello blanco.
@@ -71,7 +105,7 @@ export function createPhotoViewer() {
   }
 
   async function show(i, { first = false } = {}) {
-    const list = PHOTOS[cam.key];
+    const list = listFor(cam.key);
     index = (i + list.length) % list.length;
     const photo = list[index];
     const my = ++token;
@@ -80,7 +114,10 @@ export function createPhotoViewer() {
     $('.shot-cam').textContent = cam.name;
     $('.shot-when').textContent = `Sol ${photo.sol}, ${daysAgo(photo.takenUtc)}`;
     $('.shot-note').textContent = photo.note;
-    $('.shot-count').textContent = `Foto ${index + 1} de ${list.length}`;
+    paintCount();
+    $('.shot-live').hidden = !photo.live;
+    root.dataset.live = String(Boolean(photo.live));
+    where.show(photo);
     $('.shot-credit').innerHTML = `Imagen cruda: ${photo.credit}. <a href="${photo.link}" target="_blank" rel="noopener">Ver en la NASA</a>`;
     img.alt = `${cam.name}, sol ${photo.sol}: ${photo.note}`;
     Object.assign(root.dataset, { camera: cam.key, photo: photo.id, loaded: 'false' });
@@ -132,6 +169,7 @@ export function createPhotoViewer() {
 
   async function open(camera) {
     cam = camera;
+    fetchFresh(camera);
     token++;
     clearStay();
     setState('capturing');
@@ -158,6 +196,9 @@ export function createPhotoViewer() {
     }
   });
   $('.shot-backdrop').addEventListener('click', close);
+  $('.shot-close').addEventListener('click', close);
+  $('.shot-prev').addEventListener('click', () => show(index - 1));
+  $('.shot-next').addEventListener('click', () => show(index + 1));
 
   // Mientras hay una foto abierta, las flechas son del visor (no manejan el rover).
   window.addEventListener(

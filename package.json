@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite --host --port 5173",
     "build": "vite build",
-    "check": "node scripts/check.mjs"
+    "check": "node scripts/check.mjs",
+    "waypoints": "node scripts/waypoints.mjs"
   },
   "dependencies": {
     "three": "^0.170.0"
