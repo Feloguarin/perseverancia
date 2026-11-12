@@ -121,7 +121,7 @@ const loadWatchdog = setTimeout(() => {
   console.error('[Rover] La carga del modelo no termina:', info);
   loadStatus.dataset.error = 'true';
   loadStatus.textContent = `Percy no termina de cargar (${info.paso.replace('…', '')}, ${info.segundos} s). WebAssembly: ${info.webassembly ? 'sí' : 'no'} · Workers: ${info.workers ? 'sí' : 'no'} · ${info.navegador}`;
-}, 20000);
+}, 60000);
 
 rover
   .load(envMap, onModelProgress)
