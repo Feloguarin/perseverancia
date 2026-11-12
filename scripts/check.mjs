@@ -1,7 +1,7 @@
 // Abre la escena en un Chrome invisible (el Chrome instalado, sin descargar navegadores),
 // guarda una captura y lista los errores de consola. Sale con código 1 si hay errores.
 import { chromium } from 'playwright-core';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, readFile } from 'node:fs/promises';
 
 const URL = process.env.CHECK_URL ?? 'http://localhost:5173';
 const OUT = 'screenshots/check.png';
@@ -12,6 +12,8 @@ const OUT_PHOTO_ZOOM = 'screenshots/check-foto-ampliada.png';
 const OUT_MISSION = 'screenshots/check-mision.png';
 const OUT_REPORT = 'screenshots/check-informe.png';
 const OUT_ARM = 'screenshots/check-brazo.png';
+const OUT_WHERE = 'screenshots/check-donde.png';
+const OUT_LIVE = 'screenshots/check-ultimo.png';
 const WAIT_MS = Number(process.env.CHECK_WAIT ?? 4000);
 
 await mkdir('screenshots', { recursive: true });
@@ -19,9 +21,21 @@ await mkdir('screenshots', { recursive: true });
 const browser = await chromium.launch({
   channel: 'chrome',
   headless: true,
-  args: ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'],
+  args: [...(process.platform === 'darwin' ? ['--use-angle=metal'] : []), '--enable-gpu', '--ignore-gpu-blocklist'],
 });
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+
+// El servidor de la NASA puede rechazar los navegadores sin ventana (se ve como un error de CORS),
+// así que la prueba no depende de sus datos en vivo:
+//  · el servicio de fotos se simula con una respuesta real guardada (scripts/fixtures), y
+//  · si el registro de manejos falla, se comprueba que entra la copia de respaldo.
+const NASA_PHOTOS = await readFile(new globalThis.URL('./fixtures/nasa-navcam.json', import.meta.url), 'utf8');
+await page.route('https://mars.nasa.gov/rss/api/**', (route) =>
+  route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: NASA_PHOTOS }),
+);
+const isNasaLive = (url = '') => url.includes('mars.nasa.gov/mmgis-maps/');
+// Una foto que se cancela porque ya se pasó a la siguiente no es un fallo.
+const skipped = (req) => req.resourceType() === 'image' && req.failure()?.errorText === 'net::ERR_ABORTED';
 
 const errors = [];
 const warnings = [];
@@ -30,6 +44,8 @@ const telemetry = [];
 const roverChecks = [];
 const photoChecks = [];
 const missionChecks = [];
+const whereChecks = [];
+const liveChecks = [];
 
 // Rangos plausibles: si el número cae fuera, no es un dato real de Percy.
 const EXPECTED = {
@@ -188,6 +204,39 @@ async function checkPhotos() {
     photoChecks.push({ key, pass, info });
     if (!pass) fail(`${key} no mostró una foto real (${info.loaded}, ${info.width}px, ${info.src})`);
 
+    // ¿Dónde se tomó?: cada foto se ubica en el recorrido real con su sitio y manejo.
+    const where = await page
+      .waitForFunction(() => document.querySelector('.shot-where')?.dataset.state === 'ok', null, { timeout: 15000 })
+      .then(() => page.$eval('.shot-where', (el) => ({ ...el.dataset, hidden: el.hidden, text: el.querySelector('.shot-where-text').textContent, lines: el.querySelectorAll('polyline').length })))
+      .catch(() => null);
+    const whereOk = Boolean(where) && !where.hidden && where.lines === 2 && Number(where.km) > 40 && Number(where.km) < 60 && /kilómetro/.test(where.text);
+    whereChecks.push({ key, pass: whereOk, detail: where ? `sitio ${where.site}, manejo ${where.drive}, km ${where.km} (${where.source === 'live' ? 'en vivo' : 'copia de respaldo'})` : 'sin mapa' });
+    if (!whereOk) fail(`${key}: el mapa de dónde se tomó no apareció o no cuadra (${JSON.stringify(where)})`);
+
+    if (key === 'navcam') {
+      // Acercar el mapa y volver, sin que eso amplíe la foto.
+      const box0 = await page.$eval('.shot-where svg', (s) => s.getAttribute('viewBox'));
+      await page.click('.shot-where-map');
+      const box1 = await page.$eval('.shot-where svg', (s) => s.getAttribute('viewBox'));
+      if (box0 === box1 || (await shot()).state === 'zoomed') fail('el mapa no se acercó al tocarlo (o amplió la foto)');
+      await page.screenshot({ path: OUT_WHERE });
+      await page.click('.shot-where-map');
+      // Lo último de la NASA: detrás de las escogidas a mano vienen las que trae su servicio.
+      const fresh = Number(await page.waitForFunction(() => Number(document.querySelector('.shot').dataset.fresh) > 0, null, { timeout: 10000 }).then(() => page.$eval('.shot', (s) => s.dataset.fresh), () => 0));
+      const curated = Number((await page.$eval('.shot-count', (el) => el.textContent)).match(/de (\d+)/)[1]) - fresh;
+      for (let i = 0; i < curated; i++) await page.keyboard.press('ArrowRight');
+      await page.waitForFunction(() => document.querySelector('.shot').dataset.live === 'true' && document.querySelector('.shot').dataset.state === 'shown', null, { timeout: 25000 }).catch(() => {});
+      const live = await page.evaluate(() => {
+        const s = document.querySelector('.shot');
+        const img = s.querySelector('img');
+        return { live: s.dataset.live, badge: !s.querySelector('.shot-live').hidden, width: img.naturalWidth, src: img.currentSrc, when: s.querySelector('.shot-when').textContent, id: s.dataset.photo };
+      });
+      const liveOk = fresh > 0 && fresh <= 8 && live.live === 'true' && live.badge && live.width >= 800 && /mars\.nasa\.gov\/mars2020-raw-images\//.test(live.src) && /^Sol \d+, /.test(live.when);
+      liveChecks.push({ pass: liveOk, detail: `${fresh} nuevas tras ${curated} escogidas · ${live.when}, ${live.width} px · ${live.id}` });
+      if (!liveOk) fail(`las fotos nuevas de la NASA no funcionaron (${JSON.stringify({ fresh, ...live })})`);
+      await page.screenshot({ path: OUT_LIVE });
+    }
+
     if (key === 'mastcam') {
       await page.mouse.move(640, 40);
       await page.screenshot({ path: OUT_PHOTO });
@@ -339,12 +388,13 @@ async function checkMissionControl() {
   if (await panelHidden()) errors.push('control de misión: la tecla T no volvió a mostrar el panel');
 }
 page.on('console', (msg) => {
+  if (isNasaLive(msg.location()?.url) || isNasaLive(msg.text())) return;
   if (msg.type() === 'error') errors.push(msg.text());
   else if (msg.type() === 'warning') warnings.push(msg.text());
   else if (msg.text().startsWith('[')) logs.push(msg.text());
 });
 page.on('pageerror', (err) => errors.push(`pageerror: ${err.message}`));
-page.on('requestfailed', (req) => errors.push(`requestfailed: ${req.url()} (${req.failure()?.errorText})`));
+page.on('requestfailed', (req) => isNasaLive(req.url()) || skipped(req) || errors.push(`requestfailed: ${req.url()} (${req.failure()?.errorText})`));
 
 try {
   await page.goto(URL, { waitUntil: 'networkidle', timeout: 20000 });
@@ -391,11 +441,19 @@ if (photoChecks.length) {
   console.log('Cámaras:');
   for (const c of photoChecks) console.log(`  ${c.pass ? '✓' : '✗'} ${c.info.cam}: ${c.info.when}, ${c.info.width} px · ${c.info.photo}`);
 }
+if (whereChecks.length) {
+  console.log('¿Dónde se tomó?:');
+  for (const c of whereChecks) console.log(`  ${c.pass ? '✓' : '✗'} ${c.key}: ${c.detail}`);
+}
+if (liveChecks.length) {
+  console.log('Lo último de la NASA (servicio simulado con una respuesta real guardada):');
+  for (const c of liveChecks) console.log(`  ${c.pass ? '✓' : '✗'} ${c.detail}`);
+}
 if (missionChecks.length) {
   console.log('Misión:');
   for (const c of missionChecks) console.log(`  ${c.pass ? '✓' : '✗'} ${c.name}: ${c.detail}`);
 }
-console.log(`\nCapturas: ${OUT_START} (inicio), ${OUT} (tras manejar), ${OUT_HIDDEN} (panel oculto con T), ${OUT_PHOTO} (foto abierta), ${OUT_PHOTO_ZOOM} (foto ampliada), ${OUT_ARM} (brazo en la roca), ${OUT_MISSION} (hallazgo), ${OUT_REPORT} (informe)`);
+console.log(`\nCapturas: ${OUT_START} (inicio), ${OUT} (tras manejar), ${OUT_HIDDEN} (panel oculto con T), ${OUT_PHOTO} (foto abierta), ${OUT_PHOTO_ZOOM} (foto ampliada), ${OUT_ARM} (brazo en la roca), ${OUT_MISSION} (hallazgo), ${OUT_REPORT} (informe), ${OUT_WHERE} (mapa acercado), ${OUT_LIVE} (foto nueva de la NASA)`);
 if (warnings.length) {
   console.log(`\nAvisos (${warnings.length}):`);
   for (const w of warnings) console.log(`  - ${w}`);

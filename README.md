@@ -84,7 +84,8 @@ Abre <http://localhost:5173> y listo.
 - **El rover** usa la suspensión *rocker-bogie* del real. El *rocker* (ámbar) sostiene la rueda delantera; el *bogie* (azul), la del medio y la trasera. Así, cuando una rueda sube a una roca, las otras cinco siguen en el suelo y el cuerpo apenas se inclina.
 - **La velocidad es real**: 4,2 cm/s. Como eso sería muy lento para jugar, el reloj del rover corre 60 veces más rápido, y el tablero lo dice.
 - **El control de misión** usa el patrón de telemetría de [Open MCT](https://nasa.github.io/openmct/), la herramienta de la NASA: cada dato tiene nombre, unidad y un proveedor que sabe traer su historial.
-- **Las fotos** se escogieron a mano entre ~2.600 imágenes crudas de los últimos soles, buscando que se sienta Marte: horizontes, el brazo sobre el suelo y rocas de cerca.
+- **Las fotos** se escogieron a mano entre ~2.600 imágenes crudas de los últimos soles, buscando que se sienta Marte: horizontes, el brazo sobre el suelo y rocas de cerca. Detrás de ellas, cada cámara suma hasta 8 fotos que pide en el momento al servicio de la NASA: pasan un filtro por sus datos (a color, cuadro completo, apuntando al suelo) y van marcadas como selección automática, porque nadie las ha revisado.
+- **¿Dónde se tomó?** Cada foto trae el sitio y el manejo en que estaba el rover. Se cruzan con el registro de manejos y se dibuja el punto sobre el recorrido real, con el kilómetro y la altura. Toca el mapa para acercarlo.
 
 ## Datos reales que usa
 
@@ -128,8 +129,8 @@ Este proyecto es una base. Tómalo, cámbialo y hazlo tuyo. Algunas ideas:
 - **Más rocas y más tubos:** sumar otras muestras reales y el depósito de tubos de "Three Forks".
 - **Manejo autónomo:** que el rover esquive rocas solo usando sus Hazcams, como hace el sistema AutoNav.
 - **El helicóptero Ingenuity** volando sobre el cráter.
-- **La ruta real:** dibujar en un mapa los 45 km que Percy ha manejado, con el mismo registro de la NASA.
-- **Fotos siempre nuevas:** un script que proponga fotos recientes para revisar.
+- **La ruta real, en grande:** el visor ya dibuja el recorrido para ubicar cada foto; falta un mapa completo de los 45 km, con el relieve.
+- **Mejor ojo para las fotos nuevas:** el filtro automático solo mira los datos de cada foto; uno que mire la imagen descartaría las aburridas.
 - **Mástil y brazo animados**, tormentas de polvo, día y noche, sonido de Marte.
 - **Modo celular** con controles táctiles.
 
@@ -222,7 +223,8 @@ Open <http://localhost:5173> and you're in.
 - **The rover** uses the real *rocker-bogie* suspension. The *rocker* (amber in the diagram above) holds the front wheel; the *bogie* (blue) holds the middle and rear wheels. When one wheel climbs a rock, the other five stay on the ground and the body barely tilts.
 - **Speed is real**: 4.2 cm/s. That would be too slow to play, so the rover's clock runs 60× faster, and the dashboard says so.
 - **Mission control** follows the telemetry pattern of [Open MCT](https://nasa.github.io/openmct/), NASA's mission control framework: every value has a name, a unit and a provider that knows how to fetch its history.
-- **The photos** were hand-picked from ~2,600 raw images from the latest sols, looking for what feels like Mars: horizons, the arm above the ground, close-up rocks.
+- **The photos** were hand-picked from ~2,600 raw images from the latest sols, looking for what feels like Mars: horizons, the arm above the ground, close-up rocks. Behind them, each camera adds up to 8 photos requested on the spot from NASA's image service: they pass a metadata filter (color, full frame, pointing at the ground) and are labeled as an automatic pick, since nobody has reviewed them.
+- **Where was it taken?** Each photo carries the site and drive the rover was at. They are matched against the drive log and the spot is drawn on the real route, with its kilometer and elevation. Tap the map to zoom in.
 
 ## Real data it uses
 
@@ -241,8 +243,8 @@ This project is a starting point. Take it, change it, make it yours. Some ideas:
 - **More rocks and tubes:** add other real samples and the "Three Forks" sample depot.
 - **Autonomous driving:** let the rover avoid rocks on its own using its Hazcams, like the AutoNav system.
 - **The Ingenuity helicopter** flying over the crater.
-- **The real route:** map the 45 km Percy has driven, using the same NASA log.
-- **Always-fresh photos:** a script that suggests recent photos to review.
+- **The real route, full size:** the viewer already draws the route to place each photo; a full map of the 45 km with terrain is still missing.
+- **A better eye for new photos:** the automatic filter only reads each photo's metadata; one that looks at the image would drop the dull ones.
 - **Animated mast and arm**, dust storms, day and night, Martian sound.
 - **Mobile mode** with touch controls.
 
